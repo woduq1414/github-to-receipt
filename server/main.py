@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Union
 import httpx
 import os
 from datetime import datetime, timedelta
@@ -32,7 +32,7 @@ class CommitData(BaseModel):
 class TopRepository(BaseModel):
     name: str
     stargazers_count: int
-    primary_language: str | None
+    primary_language: Optional[str]
     updated_at: str
 
 class GitHubStatsResponse(BaseModel):
