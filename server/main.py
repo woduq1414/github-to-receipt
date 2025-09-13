@@ -46,6 +46,9 @@ class GitHubStatsResponse(BaseModel):
     max_streak: int
     best_day: CommitData
     top_repositories: List[TopRepository]
+    followers: int
+    following: int
+    created_at: str
 
 # GitHub GraphQL API 클라이언트
 class GitHubClient:
@@ -69,6 +72,12 @@ class GitHubClient:
             login
             avatarUrl
             createdAt
+            followers {
+              totalCount
+            }
+            following {
+              totalCount
+            }
             repositories(privacy: PUBLIC) {
               totalCount
             }
@@ -373,7 +382,10 @@ async def get_github_stats(request: GitHubUserRequest):
                 date=user_data["best_day"]["date"],
                 count=user_data["best_day"]["count"]
             ),
-            top_repositories=top_repositories
+            top_repositories=top_repositories,
+            followers=user_data["followers"]["totalCount"],
+            following=user_data["following"]["totalCount"],
+            created_at=user_data["createdAt"]
         )
         
     except HTTPException:

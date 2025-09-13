@@ -21,6 +21,9 @@ export interface GitHubStats {
   max_streak: number;
   best_day: CommitData;
   top_repositories: TopRepository[];
+  followers: number;
+  following: number;
+  created_at: string;
 }
 
 export interface GitHubUserRequest {

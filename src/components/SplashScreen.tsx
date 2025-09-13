@@ -61,7 +61,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onTouch }) => {
             </svg>
           </div>
           <h1 className="text-4xl font-bold text-white mb-4">
-            GitHub2Receipt
+            GITHUB2RECEIPT
           </h1>
           <p className="text-xl text-white/90 mb-8">
             GitHub 정보를 영수증으로 변환해보세요

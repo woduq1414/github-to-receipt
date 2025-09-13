@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import type { GitHubStats } from '../types/github';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import QRCode from 'qrcode';
 
 interface ReceiptScreenProps {
   githubStats: GitHubStats;
@@ -8,6 +9,30 @@ interface ReceiptScreenProps {
 }
 
 export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onReset }) => {
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+
+  // QR 코드 생성
+  useEffect(() => {
+    const generateQRCode = async () => {
+      try {
+        const githubUrl = `https://github.com/${githubStats.username}`;
+        const qrUrl = await QRCode.toDataURL(githubUrl, {
+          width: 120,
+          margin: 1,
+          color: {
+            dark: '#000000',
+            light: '#FFFFFF'
+          }
+        });
+        setQrCodeUrl(qrUrl);
+      } catch (error) {
+        console.error('QR 코드 생성 실패:', error);
+      }
+    };
+
+    generateQRCode();
+  }, [githubStats.username]);
+
   // 데이터 가공
   const processedData = useMemo(() => {
     const sortedCommits = [...githubStats.daily_commits].sort((a, b) => 
@@ -102,6 +127,11 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
     return `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   };
 
+  const formatJoinDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return `Since ${date.getFullYear()}. ${String(date.getMonth() + 1).padStart(2, '0')}. ${String(date.getDate()).padStart(2, '0')}.`;
+  };
+
   const getContributionLevel = (count: number) => {
     if (count === 0) return 0;
     if (count <= 2) return 1;
@@ -111,7 +141,7 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
   };
 
   return (
-    <div className="kiosk-container bg-white overflow-y-auto font-mono">
+    <div className="kiosk-container bg-white overflow-y-auto font-mono bg-gradient-to-b from-gray-100 to-white">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -119,7 +149,7 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
         style={{ minHeight: '100vh', fontFamily: 'Monaco, Consolas, monospace' }}
       >
         {/* 영수증 헤더 */}
-        <div className="text-center py-4 border-b-2 border-dashed border-gray-800">
+        <div className="text-center py-4 border-b-2 border-dashed border-gray-400 w-[93%] mx-auto">
           <motion.div
             initial={{ scale: 0.8 }}
             animate={{ scale: 1 }}
@@ -136,12 +166,42 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
           initial={{ x: -20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="p-4 border-b-2 border-dashed border-gray-800"
+          className="w-[93%] mx-auto p-4 border-b-2 border-dashed border-gray-400"
         >
-          <div className="text-center space-y-1">
-            <div className="text-sm font-bold">{githubStats.name}</div>
-            <div className="text-xs">@{githubStats.username}</div>
-            <div className="text-xs">공개 레포지토리 : {githubStats.public_repos}개</div>
+          <div className="flex flex-col items-center space-y-2">
+            {/* 프로필 사진 */}
+            <motion.img
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              src={githubStats.avatar_url}
+              alt={`${githubStats.username} 프로필`}
+              className="w-16 h-16 rounded-full border-2 border-gray-300"
+              style={{ filter: 'grayscale(1)' }}
+            />
+            
+            {/* 기본 정보 */}
+            <div className="text-center space-y-1">
+              <div className="text-sm font-bold">{githubStats.name}</div>
+              <div className="text-xs">@{githubStats.username}</div>
+              <div className="text-xs text-gray-600">{formatJoinDate(githubStats.created_at)}</div>
+            </div>
+            
+            {/* 통계 정보 */}
+            <div className="flex justify-between w-full space-x-4 text-xs mt-2">
+              <div className="text-center flex flex-col items-center w-1/3">
+                <div className="font-bold mb-1">{githubStats.public_repos}</div>
+                <div className="text-gray-600">레포지토리</div>
+              </div>
+              <div className="text-center flex flex-col items-center w-1/3">
+                <div className="font-bold mb-1">{githubStats.followers.toLocaleString()}</div>
+                <div className="text-gray-600">팔로워</div>
+              </div>
+              <div className="text-center flex flex-col items-center w-1/3">
+                <div className="font-bold mb-1">{githubStats.following.toLocaleString()}</div>
+                <div className="text-gray-600">팔로잉</div>
+              </div>
+            </div>
           </div>
         </motion.div>
 
@@ -150,24 +210,24 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.4 }}
-          className="p-4 border-b-2 border-dashed border-gray-800"
+          className="p-4 border-b-2 border-dashed border-gray-400 w-[93%] mx-auto"
         >
           <div className="space-y-1 text-xs">
             <div className="flex justify-between">
-              <span>총 커밋수</span>
+              <span>총 커밋 수</span>
               <span className="font-bold">{githubStats.total_commits.toLocaleString()}개</span>
             </div>
             <div className="flex justify-between">
-              <span>활동일수</span>
+              <span>활동일 수</span>
               <span className="font-bold">{processedData.activeDays}일</span>
             </div>
             <div className="flex justify-between">
-              <span>최대연속일</span>
+              <span>최대 스트릭</span>
               <span className="font-bold">{processedData.maxStreak}일</span>
             </div>
             <div className="flex justify-between">
-              <span>최고기록</span>
-              <span className="font-bold">{processedData.bestDay.count}개 ({formatDate(processedData.bestDay.date)})</span>
+              <span>일일 최고 기록</span>
+              <span className="font-bold">{processedData.bestDay.count}개({formatDate(processedData.bestDay.date)})</span>
             </div>
           </div>
         </motion.div>
@@ -177,21 +237,21 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.5 }}
-          className="p-4 border-b-2 border-dashed border-gray-800"
+          className="p-4 border-b-2 border-dashed border-gray-400 w-[93%] mx-auto"
         >
           <div className="text-center text-xs font-bold mb-3">상위 레포지토리 (최대 10개)</div>
           <div className="space-y-2">
-            {githubStats.top_repositories.slice(0, 10).reverse().map((repo, index) => (
+            {githubStats.top_repositories.slice(0, Math.min(10, githubStats.top_repositories.length)).reverse().map((repo, index) => (
               <motion.div
                 key={index}
                 initial={{ x: -10, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ delay: 0.5 + index * 0.1 }}
-                className="text-xs border-b border-gray-300 pb-1"
+                className={`text-xs  border-gray-300 pb-1 ${index === Math.min(10, githubStats.top_repositories.length) - 1 ? '' : 'border-b'}`}
               >
                 <div className="flex justify-between items-center">
                   <div className="flex-1 min-w-0">
-                    <div className="font-bold truncate">{repo.name}</div>
+                    <div className="font-bold ">{repo.name}</div>
                     <div className="text-gray-600 text-xs">
                       {repo.primary_language || 'N/A'}
                     </div>
@@ -215,7 +275,7 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.7 }}
-          className="p-4 border-b-2 border-dashed border-gray-800 flex flex-col items-center"
+          className="p-4 border-b-2 border-dashed border-gray-400 flex flex-col items-center w-[93%] mx-auto"
         >
           <div className="text-center text-xs font-bold mb-3">지난 6개월 활동 그래프</div>
           
@@ -259,32 +319,45 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
           
           {/* 범례 */}
           <div className="flex items-center justify-center mt-2 space-x-1 text-xs">
-            <span>적음</span>
+            <span className='text-xs'>적음</span>
             <div className="w-2.5 h-2.5 bg-gray-100"></div>
             <div className="w-2.5 h-2.5 bg-gray-300"></div>
             <div className="w-2.5 h-2.5 bg-gray-500"></div>
             <div className="w-2.5 h-2.5 bg-gray-700"></div>
             <div className="w-2.5 h-2.5 bg-black"></div>
-            <span>많음</span>
+            <span className='text-xs ml-1'>많음</span>
           </div>
         </motion.div>
 
-        {/* 영수증 푸터 */}
+
+
+        {/* GitHub QR 코드 */}
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 1.1 }}
-          className="p-4 text-center border-b-2 border-dashed border-gray-800"
+          transition={{ delay: 1.2 }}
+          className="p-4 text-center "
         >
-          <div className="text-xs space-y-1">
-            <div>감사합니다!</div>
-            <div>GitHub2Receipt v1.0.0</div>
-            <div>문의: github2receipt@example.com</div>
-          </div>
+     
+          {qrCodeUrl && (
+            <div className="flex flex-col items-center space-y-2">
+              <img 
+                src={qrCodeUrl} 
+                alt="GitHub QR Code" 
+                className="w-12 h-12"
+              />
+              <div className="text-xs text-gray-600">
+                github.com/{githubStats.username}
+              </div>
+            </div>
+          )}
         </motion.div>
 
+
+       
+      </motion.div>
         {/* 새로운 조회 버튼 */}
-        <div className="p-4">
+      <div className="p-4">
           <button
             onClick={onReset}
             className="w-full bg-black text-white py-3 font-bold text-sm hover:bg-gray-800 transition-colors touch-button"
@@ -292,7 +365,6 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
             새로운 사용자 조회
           </button>
         </div>
-      </motion.div>
     </div>
   );
 };
