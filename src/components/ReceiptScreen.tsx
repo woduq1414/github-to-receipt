@@ -190,7 +190,7 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
           id="ReceiptScreen"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="max-w-sm  bg-white"
+          className="max-w-sm  bg-white mt-[1rem]"
           style={{ minHeight: '100vh', fontFamily: 'Monaco, Consolas, monospace' }}
         >
           {/* 영수증 헤더 */}

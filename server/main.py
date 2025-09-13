@@ -1,9 +1,12 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, AsyncGenerator
 import httpx
 import os
+import json
+import asyncio
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
@@ -50,9 +53,18 @@ class GitHubStatsResponse(BaseModel):
     following: int
     created_at: str
 
+# 상태 이벤트 타입 정의
+class StatusEvent:
+    def __init__(self, event_type: str, message: str, progress: int = 0, data: Optional[Dict[str, Any]] = None):
+        self.event_type = event_type
+        self.message = message
+        self.progress = progress
+        self.data = data or {}
+        self.timestamp = datetime.now().isoformat()
+
 # GitHub GraphQL API 클라이언트
 class GitHubClient:
-    def __init__(self):
+    def __init__(self, status_callback=None):
         self.token = os.getenv("GITHUB_TOKEN")
         if not self.token:
             raise ValueError("GITHUB_TOKEN 환경변수가 설정되지 않았습니다.")
@@ -62,9 +74,18 @@ class GitHubClient:
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json",
         }
+        self.status_callback = status_callback
+    
+    async def emit_status(self, event_type: str, message: str, progress: int = 0, data: Optional[Dict[str, Any]] = None):
+        """상태 이벤트를 발생시킵니다."""
+        if self.status_callback:
+            event = StatusEvent(event_type, message, progress, data)
+            await self.status_callback(event)
     
     async def get_user_basic_info(self, username: str) -> Dict[str, Any]:
         """사용자의 기본 정보와 계정 생성일을 가져옵니다."""
+        await self.emit_status("api_call", f"사용자 기본 정보를 조회하고 있습니다: {username}", 10)
+        
         query = """
         query($username: String!) {
           user(login: $username) {
@@ -119,6 +140,8 @@ class GitHubClient:
     
     async def get_contributions_for_period(self, username: str, from_date: datetime, to_date: datetime) -> int:
         """특정 기간의 커밋 수를 가져옵니다."""
+        await self.emit_status("api_call", f"기간별 커밋 수를 조회하고 있습니다: {from_date.strftime('%Y-%m-%d')} ~ {to_date.strftime('%Y-%m-%d')}", 30)
+        
         query = """
         query($username: String!, $from: DateTime!, $to: DateTime!) {
           user(login: $username) {
@@ -157,6 +180,8 @@ class GitHubClient:
     
     async def get_graph_contributions(self, username: str, from_date: datetime, to_date: datetime) -> List[Dict[str, Any]]:
         """6개월 그래프용 일별 커밋 데이터를 가져옵니다."""
+        await self.emit_status("api_call", f"일별 커밋 데이터를 조회하고 있습니다: {from_date.strftime('%Y-%m-%d')} ~ {to_date.strftime('%Y-%m-%d')}", 50)
+        
         query = """
         query($username: String!, $from: DateTime!, $to: DateTime!) {
           user(login: $username) {
@@ -210,10 +235,17 @@ class GitHubClient:
 
     async def get_all_daily_contributions(self, username: str, from_date: datetime, to_date: datetime) -> List[Dict[str, Any]]:
         """전체 기간의 일별 커밋 데이터를 1년씩 분할해서 가져옵니다."""
+        await self.emit_status("api_call", "전체 기간의 커밋 데이터를 수집하고 있습니다...", 60)
+        
         all_daily_data = []
         current_start = from_date
+        year_count = 0
+        total_years = ((to_date - from_date).days // 365) + 1
         
         while current_start < to_date:
+            year_count += 1
+            await self.emit_status("api_call", f"커밋 데이터 수집 중... ({year_count}/{total_years}년)", 60 + (year_count / total_years * 20))
+            
             # 1년 후 또는 현재 날짜 중 더 작은 값
             current_end = min(current_start + timedelta(days=365), to_date)
             
@@ -228,6 +260,8 @@ class GitHubClient:
 
     async def get_top_repositories(self, username: str, limit: int = 10) -> List[Dict[str, Any]]:
         """사용자의 상위 레포지토리를 가져옵니다. 스타 수 기준으로 정렬하고, 동일한 경우 최신 업데이트 순으로 정렬합니다."""
+        await self.emit_status("api_call", f"상위 레포지토리 정보를 조회하고 있습니다 (최대 {limit}개)", 85)
+        
         query = """
         query($username: String!, $first: Int!) {
           user(login: $username) {
@@ -290,6 +324,8 @@ class GitHubClient:
     async def get_user_stats(self, username: str) -> Dict[str, Any]:
         """사용자의 기본 정보와 전체/6개월 커밋 통계를 가져옵니다."""
         
+        await self.emit_status("start", f"GitHub 사용자 '{username}' 정보 수집을 시작합니다", 0)
+        
         # 1. 기본 정보와 계정 생성일 가져오기
         user_info = await self.get_user_basic_info(username)
         created_at = datetime.fromisoformat(user_info["createdAt"].replace('Z', '+00:00')).replace(tzinfo=None)
@@ -304,6 +340,8 @@ class GitHubClient:
         
         # 4. 상위 레포지토리 정보 가져오기
         top_repositories = await self.get_top_repositories(username, 10)
+        
+        await self.emit_status("processing", "데이터를 분석하고 통계를 계산하고 있습니다", 90)
         
         # 5. 전체 기간 통계 계산
         total_contributions = sum(day["count"] for day in all_daily_data)
@@ -322,6 +360,8 @@ class GitHubClient:
         # 최고 기록 날
         best_day = max(all_daily_data, key=lambda x: x["count"]) if all_daily_data else {"date": "", "count": 0}
         
+        await self.emit_status("complete", "데이터 수집이 완료되었습니다!", 100)
+        
         # 결과 반환
         return {
             **user_info,
@@ -333,17 +373,111 @@ class GitHubClient:
             "top_repositories": top_repositories
         }
 
+# 활성 SSE 연결을 저장하는 딕셔너리
+active_connections: Dict[str, List[asyncio.Queue]] = {}
+
 # GitHub 클라이언트 인스턴스
 github_client = GitHubClient()
+
+async def event_generator(username: str) -> AsyncGenerator[str, None]:
+    """SSE 이벤트를 생성하는 제너레이터"""
+    # 연결 큐 생성
+    queue = asyncio.Queue()
+    
+    # 활성 연결 목록에 추가
+    if username not in active_connections:
+        active_connections[username] = []
+    active_connections[username].append(queue)
+    
+    try:
+        while True:
+            # 큐에서 이벤트 대기
+            event = await queue.get()
+            if event is None:  # 연결 종료 신호
+                break
+            
+            # SSE 형식으로 이벤트 전송
+            event_data = {
+                "type": event.event_type,
+                "message": event.message,
+                "progress": event.progress,
+                "data": event.data,
+                "timestamp": event.timestamp
+            }
+            
+            yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
+            
+    except asyncio.CancelledError:
+        pass
+    finally:
+        # 연결 정리
+        if username in active_connections:
+            if queue in active_connections[username]:
+                active_connections[username].remove(queue)
+            if not active_connections[username]:
+                del active_connections[username]
+
+async def broadcast_event(username: str, event: StatusEvent):
+    """특정 사용자의 모든 연결에 이벤트를 브로드캐스트"""
+    if username in active_connections:
+        for queue in active_connections[username]:
+            try:
+                await queue.put(event)
+            except:
+                # 큐가 닫혔을 경우 무시
+                pass
 
 @app.get("/")
 async def root():
     """헬스 체크 엔드포인트"""
     return {"message": "GitHub to Receipt API is running!"}
 
+@app.get("/api/github/stats/stream/{username}")
+async def stream_github_stats(username: str):
+    """GitHub 사용자 통계를 SSE로 스트리밍합니다."""
+    return StreamingResponse(
+        event_generator(username),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
+
+@app.post("/api/github/stats/async")
+async def get_github_stats_async(request: GitHubUserRequest):
+    """GitHub 사용자 통계를 비동기로 가져오고 SSE로 진행상황을 전송합니다."""
+    username = request.username
+    
+    # 상태 콜백 함수 정의
+    async def status_callback(event: StatusEvent):
+        await broadcast_event(username, event)
+    
+    # 상태 콜백을 가진 GitHub 클라이언트 생성
+    client_with_callback = GitHubClient(status_callback)
+    
+    # 백그라운드에서 데이터 수집 시작
+    async def collect_data():
+        try:
+            user_data = await client_with_callback.get_user_stats(username)
+            
+            # 완료 이벤트와 함께 데이터 전송
+            await broadcast_event(username, StatusEvent("data", "데이터 수집 완료", 100, user_data))
+            
+        except Exception as e:
+            # 오류 이벤트 전송
+            await broadcast_event(username, StatusEvent("error", f"오류 발생: {str(e)}", 0))
+    
+    # 백그라운드 태스크로 실행
+    asyncio.create_task(collect_data())
+    
+    return {"message": f"사용자 '{username}'의 데이터 수집을 시작했습니다. SSE 스트림을 연결하세요."}
+
 @app.post("/api/github/stats", response_model=GitHubStatsResponse)
 async def get_github_stats(request: GitHubUserRequest):
-    """GitHub 사용자의 통계 정보를 가져옵니다."""
+    """GitHub 사용자의 통계 정보를 가져옵니다. (기존 동기 방식)"""
     
     try:
         user_data = await github_client.get_user_stats(request.username)

@@ -3,7 +3,8 @@ import { AnimatePresence } from 'framer-motion';
 import { SplashScreen } from './components/SplashScreen';
 import { GitHubInputScreen } from './components/GitHubInputScreen';
 import { ReceiptScreen } from './components/ReceiptScreen';
-import { githubApi, GitHubApiError } from './services/githubApi';
+import { LoadingScreen } from './components/LoadingScreen';
+import { githubApi, GitHubApiError, type StatusEvent } from './services/githubApi';
 import type { GitHubStats } from './types/github';
 
 type Screen = 'splash' | 'github-input' | 'loading' | 'receipt' | 'error';
@@ -12,6 +13,8 @@ function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('splash');
   const [githubStats, setGithubStats] = useState<GitHubStats | null>(null);
   const [error, setError] = useState<string>('');
+  const [currentUsername, setCurrentUsername] = useState<string>('');
+  const [currentStatus, setCurrentStatus] = useState<StatusEvent | null>(null);
 
   const handleSplashTouch = () => {
     setCurrentScreen('github-input');
@@ -20,11 +23,24 @@ function App() {
   const handleGithubSubmit = async (username: string) => {
     setCurrentScreen('loading');
     setError('');
+    setCurrentUsername(username);
+    setCurrentStatus(null);
     
     try {
-      const stats = await githubApi.getStats(username);
-      setGithubStats(stats);
-      setCurrentScreen('receipt');
+      // SSE를 사용하여 실시간 상태 업데이트와 함께 데이터 수집
+      await githubApi.getStatsWithSSE(username, {
+        onStatusUpdate: (event: StatusEvent) => {
+          setCurrentStatus(event);
+        },
+        onComplete: (data: GitHubStats) => {
+          setGithubStats(data);
+          setCurrentScreen('receipt');
+        },
+        onError: (errorMessage: string) => {
+          setError(errorMessage);
+          setCurrentScreen('error');
+        }
+      });
     } catch (error) {
       console.error('GitHub API 오류:', error);
       
@@ -42,11 +58,19 @@ function App() {
     setCurrentScreen('splash');
     setGithubStats(null);
     setError('');
+    setCurrentUsername('');
+    setCurrentStatus(null);
   };
 
   const handleRetry = () => {
     setCurrentScreen('github-input');
     setError('');
+    setCurrentStatus(null);
+  };
+
+  const handleCancelLoading = () => {
+    setCurrentScreen('github-input');
+    setCurrentStatus(null);
   };
 
   return (
@@ -67,13 +91,12 @@ function App() {
         )}
         
         {currentScreen === 'loading' && (
-          <div key="loading" className="kiosk-container flex items-center justify-center">
-            <div className="text-center p-8">
-              <div className="w-16 h-16 mx-auto mb-6 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
-              <h1 className="text-2xl font-bold mb-4 text-gray-900">데이터 분석 중...</h1>
-              <p className="text-gray-600">GitHub에서 정보를 가져오고 있습니다</p>
-            </div>
-          </div>
+          <LoadingScreen
+            key="loading"
+            username={currentUsername}
+            currentStatus={currentStatus}
+            onCancel={handleCancelLoading}
+          />
         )}
         
         {currentScreen === 'receipt' && githubStats && (
