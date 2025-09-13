@@ -62,7 +62,6 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
     
     // 월 라벨 위치 계산
     const monthLabels: Array<{ month: string; position: number }> = [];
-    const currentMonth = new Date().getMonth();
     
     contributionGrid.forEach((week, weekIndex) => {
       const firstDay = week[0];
@@ -142,7 +141,7 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
           <div className="text-center space-y-1">
             <div className="text-sm font-bold">{githubStats.name}</div>
             <div className="text-xs">@{githubStats.username}</div>
-            <div className="text-xs">공개저장소: {githubStats.public_repos}개</div>
+            <div className="text-xs">공개 레포지토리 : {githubStats.public_repos}개</div>
           </div>
         </motion.div>
 
@@ -173,12 +172,49 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
           </div>
         </motion.div>
 
+        {/* 상위 레포지토리 섹션 */}
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="p-4 border-b-2 border-dashed border-gray-800"
+        >
+          <div className="text-center text-xs font-bold mb-3">상위 레포지토리 (최대 10개)</div>
+          <div className="space-y-2">
+            {githubStats.top_repositories.slice(0, 10).reverse().map((repo, index) => (
+              <motion.div
+                key={index}
+                initial={{ x: -10, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ delay: 0.5 + index * 0.1 }}
+                className="text-xs border-b border-gray-300 pb-1"
+              >
+                <div className="flex justify-between items-center">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold truncate">{repo.name}</div>
+                    <div className="text-gray-600 text-xs">
+                      {repo.primary_language || 'N/A'}
+                    </div>
+                  </div>
+                  <div className="text-right ml-2 flex-shrink-0 mb-1">
+                    <div className="font-bold"><span className="text-xl">★</span> {repo.stargazers_count.toLocaleString()}</div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+            {githubStats.top_repositories.length === 0 && (
+              <div className="text-xs text-gray-500 text-center py-2">
+                공개 레포지토리가 없습니다.
+              </div>
+            )}
+          </div>
+        </motion.div>
 
         {/* GitHub 스타일 Contribution Graph */}
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.6 }}
+          transition={{ delay: 0.7 }}
           className="p-4 border-b-2 border-dashed border-gray-800 flex flex-col items-center"
         >
           <div className="text-center text-xs font-bold mb-3">지난 6개월 활동 그래프</div>
@@ -237,7 +273,7 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 1.0 }}
+          transition={{ delay: 1.1 }}
           className="p-4 text-center border-b-2 border-dashed border-gray-800"
         >
           <div className="text-xs space-y-1">

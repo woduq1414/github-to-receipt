@@ -3,6 +3,13 @@ export interface CommitData {
   count: number;
 }
 
+export interface TopRepository {
+  name: string;
+  stargazers_count: number;
+  primary_language: string | null;
+  updated_at: string;
+}
+
 export interface GitHubStats {
   username: string;
   daily_commits: CommitData[];
@@ -13,6 +20,7 @@ export interface GitHubStats {
   active_days: number;
   max_streak: number;
   best_day: CommitData;
+  top_repositories: TopRepository[];
 }
 
 export interface GitHubUserRequest {

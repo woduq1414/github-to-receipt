@@ -29,6 +29,12 @@ class CommitData(BaseModel):
     date: str
     count: int
 
+class TopRepository(BaseModel):
+    name: str
+    stargazers_count: int
+    primary_language: str | None
+    updated_at: str
+
 class GitHubStatsResponse(BaseModel):
     username: str
     daily_commits: List[CommitData]
@@ -39,6 +45,7 @@ class GitHubStatsResponse(BaseModel):
     active_days: int
     max_streak: int
     best_day: CommitData
+    top_repositories: List[TopRepository]
 
 # GitHub GraphQL API 클라이언트
 class GitHubClient:
@@ -210,6 +217,67 @@ class GitHubClient:
         
         return all_daily_data
 
+    async def get_top_repositories(self, username: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """사용자의 상위 레포지토리를 가져옵니다. 스타 수 기준으로 정렬하고, 동일한 경우 최신 업데이트 순으로 정렬합니다."""
+        query = """
+        query($username: String!, $first: Int!) {
+          user(login: $username) {
+            repositories(
+              first: $first, 
+              privacy: PUBLIC, 
+              ownerAffiliations: OWNER,
+              orderBy: {field: STARGAZERS, direction: DESC}
+            ) {
+              nodes {
+                name
+                stargazerCount
+                primaryLanguage {
+                  name
+                }
+                updatedAt
+              }
+            }
+          }
+        }
+        """
+        
+        variables = {
+            "username": username,
+            "first": limit
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                self.base_url,
+                json={"query": query, "variables": variables},
+                headers=self.headers,
+                timeout=30.0
+            )
+            
+            if response.status_code != 200:
+                return []
+            
+            data = response.json()
+            
+            if "errors" in data or not data.get("data", {}).get("user"):
+                return []
+            
+            repositories = data["data"]["user"]["repositories"]["nodes"]
+            
+            # 스타 수로 정렬하고, 동일한 경우 최신 업데이트 순으로 정렬
+            sorted_repos = sorted(repositories, key=lambda x: (-x["stargazerCount"], x["updatedAt"]), reverse=True)
+            
+            result = []
+            for repo in sorted_repos:
+                result.append({
+                    "name": repo["name"],
+                    "stargazers_count": repo["stargazerCount"],
+                    "primary_language": repo["primaryLanguage"]["name"] if repo["primaryLanguage"] else None,
+                    "updated_at": repo["updatedAt"]
+                })
+            
+            return result
+
     async def get_user_stats(self, username: str) -> Dict[str, Any]:
         """사용자의 기본 정보와 전체/6개월 커밋 통계를 가져옵니다."""
         
@@ -225,7 +293,10 @@ class GitHubClient:
         # 3. 전체 기간 일별 데이터 가져오기 (통계 계산용)
         all_daily_data = await self.get_all_daily_contributions(username, created_at, end_date)
         
-        # 4. 전체 기간 통계 계산
+        # 4. 상위 레포지토리 정보 가져오기
+        top_repositories = await self.get_top_repositories(username, 10)
+        
+        # 5. 전체 기간 통계 계산
         total_contributions = sum(day["count"] for day in all_daily_data)
         active_days = len([day for day in all_daily_data if day["count"] > 0])
         
@@ -249,7 +320,8 @@ class GitHubClient:
             "daily_commits_data": daily_commits_data,
             "active_days": active_days,
             "max_streak": max_streak,
-            "best_day": best_day
+            "best_day": best_day,
+            "top_repositories": top_repositories
         }
 
 # GitHub 클라이언트 인스턴스
@@ -278,6 +350,16 @@ async def get_github_stats(request: GitHubUserRequest):
         # 날짜 순으로 정렬
         daily_commits.sort(key=lambda x: x.date)
         
+        # 상위 레포지토리 데이터 변환
+        top_repositories = []
+        for repo_data in user_data["top_repositories"]:
+            top_repositories.append(TopRepository(
+                name=repo_data["name"],
+                stargazers_count=repo_data["stargazers_count"],
+                primary_language=repo_data["primary_language"],
+                updated_at=repo_data["updated_at"]
+            ))
+        
         return GitHubStatsResponse(
             username=user_data["login"],
             daily_commits=daily_commits,
@@ -290,7 +372,8 @@ async def get_github_stats(request: GitHubUserRequest):
             best_day=CommitData(
                 date=user_data["best_day"]["date"],
                 count=user_data["best_day"]["count"]
-            )
+            ),
+            top_repositories=top_repositories
         )
         
     except HTTPException:
