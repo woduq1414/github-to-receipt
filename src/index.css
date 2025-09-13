@@ -1,0 +1,53 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+/* Pretendard 폰트 임포트 */
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css');
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  html {
+    font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: #ffffff;
+    color: #1a1a1a;
+    overflow-x: hidden;
+  }
+  
+  /* 키오스크 화면 최적화 */
+  .kiosk-container {
+    width: 100vw;
+    height: 100vh;
+    /* max-width: 576px; */
+    margin: 0 auto;
+    position: relative;
+    background: #ffffff;
+  }
+  
+  /* 터치 친화적 버튼 스타일 */
+  .touch-button {
+    min-height: 56px;
+    min-width: 56px;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+}
+
+/* 키오스크 화면 최적화 */
+@media (min-height: 1800px) {
+  * {
+    font-size: 32px;
+  }
+}
