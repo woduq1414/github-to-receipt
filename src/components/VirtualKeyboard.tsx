@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 
 interface VirtualKeyboardProps {
   onKeyPress: (key: string) => void;
@@ -16,6 +16,93 @@ const KEYBOARD_LAYOUT = [
 
 const NUMBERS_ROW = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
 
+// KeyButton을 별도 컴포넌트로 분리
+const KeyButton: React.FC<{ 
+  children: React.ReactNode; 
+  onClick: () => void; 
+  className?: string;
+  isSpecial?: boolean;
+}> = ({ children, onClick, className = '', isSpecial = false }) => {
+  const [ripples, setRipples] = useState<Array<{ id: number; x: number; y: number }>>([]);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    console.log('handleClick');
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      const rippleId = Date.now() + Math.random(); // 더 고유한 ID 생성
+      const newRipple = {
+        id: rippleId,
+        x,
+        y,
+      };
+      
+      console.log('Adding ripple:', newRipple);
+      
+      // 리플 추가
+      setRipples(prev => {
+        const newRipples = [...prev, newRipple];
+        console.log('Current ripples after add:', newRipples);
+        return newRipples;
+      });
+      
+      // 애니메이션 완료 후 ripple 제거
+      setTimeout(() => {
+        console.log('Removing ripple:', rippleId);
+        setRipples(prev => {
+          const filtered = prev.filter(ripple => ripple.id !== rippleId);
+          console.log('Remaining ripples after remove:', filtered);
+          return filtered;
+        });
+      }, 600);
+    }
+    
+    onClick();
+  };
+
+  return (
+    <motion.button
+      ref={buttonRef}
+      whileTap={{ scale: 0.9 }}
+      onClick={handleClick}
+      className={`
+        touch-button bg-white border border-gray-200 rounded-lg font-medium text-gray-800
+        shadow-sm active:shadow-none transition-all duration-150 select-none relative overflow-hidden
+        ${isSpecial ? 'text-sm px-3' : 'text-lg'} 
+        ${className}
+      `}
+      style={{ touchAction: 'manipulation' }}
+    >
+      {children}
+      
+      {/* 스플래시 효과 */}
+      {ripples.map((ripple) => {
+        console.log('Rendering ripple:', ripple);
+        return (
+          <motion.div
+            key={ripple.id}
+            className="absolute bg-primary-500 rounded-full pointer-events-none z-10"
+            style={{
+              left: ripple.x,
+              top: ripple.y,
+              width: 20,
+              height: 20,
+              transform: 'translate(-50%, -50%)',
+              zIndex: 100,
+            }}
+            initial={{ scale: 2, opacity: 0.7 }}
+            animate={{ scale: 8, opacity: 0 }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+          />
+        );
+      })}
+    </motion.button>
+  );
+};
+
 export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
   onKeyPress,
   onBackspace,
@@ -31,27 +118,6 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
       setIsShiftActive(false); // 한 번 누르면 Shift 해제
     }
   };
-
-  const KeyButton: React.FC<{ 
-    children: React.ReactNode; 
-    onClick: () => void; 
-    className?: string;
-    isSpecial?: boolean;
-  }> = ({ children, onClick, className = '', isSpecial = false }) => (
-    <motion.button
-      whileTap={{ scale: 0.95 }}
-      onClick={onClick}
-      className={`
-        touch-button bg-white border border-gray-200 rounded-lg font-medium text-gray-800
-        shadow-sm active:shadow-none transition-all duration-150 select-none
-        ${isSpecial ? 'text-sm px-3' : 'text-lg'} 
-        ${className}
-      `}
-      style={{ touchAction: 'manipulation' }}
-    >
-      {children}
-    </motion.button>
-  );
 
   if (!isVisible) return null;
 
