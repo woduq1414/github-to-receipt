@@ -54,7 +54,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
     };
 
     return (
-        <div className="kiosk-container bg-gradient-to-br from-primary-500 to-primary-600 flex flex-col items-center justify-center font-mono">
+        <div className="kiosk-container bg-gradient-to-br from-primary-500 to-primary-600 flex flex-col items-center justify-center">
             <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}

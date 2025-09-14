@@ -12,6 +12,7 @@ interface ReceiptScreenProps {
 
 export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onReset }) => {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+  const [isPrinting, setIsPrinting] = useState<boolean>(false);
 
   // QR 코드 생성
   useEffect(() => {
@@ -135,19 +136,16 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
   };
 
   const handleSaveReceipt = async () => {
+    if (isPrinting) return;
+    
     try {
+      setIsPrinting(true);
+      
       const element = document.getElementById('ReceiptScreen');
       if (!element) {
         console.error('영수증 요소를 찾을 수 없습니다.');
         toast.error('영수증 요소를 찾을 수 없습니다.');
         return;
-      }
-
-      // 버튼 비활성화 및 로딩 상태 표시
-      const button = document.querySelector('button[onClick*="handleSaveReceipt"]') as HTMLButtonElement;
-      if (button) {
-        button.disabled = true;
-        button.textContent = '📤 프린터로 전송 중...';
       }
 
       // 요소의 실제 크기와 위치 가져오기
@@ -217,12 +215,7 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
         }
       );
     } finally {
-      // 버튼 상태 복원
-      const button = document.querySelector('button[onClick*="handleSaveReceipt"]') as HTMLButtonElement;
-      if (button) {
-        button.disabled = false;
-        button.textContent = '🖨️ 영수증 출력하기';
-      }
+      setIsPrinting(false);
     }
   };
 
@@ -235,7 +228,7 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
   };
 
   return (
-    <div className="kiosk-container overflow-y-auto font-mono bg-gradient-to-br from-primary-500 to-primary-600  ">
+    <div className="kiosk-container overflow-y-auto bg-gradient-to-br from-primary-500 to-primary-600  ">
       <div className='flex flex-col justify-center items-center'>
         <motion.div
           id="ReceiptScreen"
@@ -352,8 +345,8 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
                         {repo.primary_language || 'N/A'}
                       </div>
                     </div>
-                    <div className="text-right ml-2 flex-shrink-0 mb-1">
-                      <div className="font-bold"><span className="text-xl">★</span> {repo.stargazers_count.toLocaleString()}</div>
+                    <div className="text-right ml-2 flex-shrink-0 mb-1 ">
+                      <div className="font-bold flex items-center gap-1"><span className="text-xl">★</span> {repo.stargazers_count.toLocaleString()}</div>
                     </div>
                   </div>
                 </motion.div>
@@ -456,9 +449,21 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
       <div className="p-4 space-y-3">
         <button
           onClick={handleSaveReceipt}
+          disabled={isPrinting}
           className="w-full bg-gray-600 text-white py-3 font-bold text-sm hover:bg-gray-700 transition-colors touch-button disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
-          🖨️ 영수증 출력하기
+          {isPrinting ? (
+            <div className="flex items-center justify-center">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                className="w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"
+              />
+              📤 프린터로 전송 중...
+            </div>
+          ) : (
+            '🖨️ 영수증 출력하기'
+          )}
         </button>
         <button
           onClick={onReset}
