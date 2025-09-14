@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { SplashScreen } from './components/SplashScreen';
 import { GitHubInputScreen } from './components/GitHubInputScreen';
 import { ReceiptScreen } from './components/ReceiptScreen';
@@ -75,6 +77,20 @@ function App() {
 
   return (
     <div className="min-h-screen bg-white font-pretendard">
+      <ToastContainer
+        position="top-center"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+        toastClassName="font-mono text-sm"
+        bodyClassName="text-gray-800"
+      />
       <AnimatePresence mode="wait">
         {currentScreen === 'splash' && (
           <SplashScreen

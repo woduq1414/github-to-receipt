@@ -3,6 +3,7 @@ import type { GitHubStats } from '../types/github';
 import { useMemo, useState, useEffect } from 'react';
 import QRCode from 'qrcode';
 import { toPng } from 'html-to-image';
+import { toast } from 'react-toastify';
 
 interface ReceiptScreenProps {
   githubStats: GitHubStats;
@@ -138,7 +139,15 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
       const element = document.getElementById('ReceiptScreen');
       if (!element) {
         console.error('영수증 요소를 찾을 수 없습니다.');
+        toast.error('영수증 요소를 찾을 수 없습니다.');
         return;
+      }
+
+      // 버튼 비활성화 및 로딩 상태 표시
+      const button = document.querySelector('button[onClick*="handleSaveReceipt"]') as HTMLButtonElement;
+      if (button) {
+        button.disabled = true;
+        button.textContent = '📤 프린터로 전송 중...';
       }
 
       // 요소의 실제 크기와 위치 가져오기
@@ -159,19 +168,61 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
         cacheBust: true // 캐시 방지
       });
 
-      // 다운로드 링크 생성
-      const link = document.createElement('a');
-      link.download = `github-receipt-${githubStats.username}-${new Date().toISOString().split('T')[0]}.png`;
-      link.href = dataUrl;
+      // 서버로 이미지 전송
+      const filename = `github-receipt-${githubStats.username}-${new Date().toISOString().split('T')[0]}.png`;
+      
+      const response = await fetch('http://localhost:8000/api/receipt/print', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          image_data: dataUrl,
+          filename: filename
+        })
+      });
 
-      // 다운로드 실행
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        toast.success(
+          `🖨️ 영수증이 성공적으로 출력되었습니다!\n원본: ${result.original_size} → 리사이즈: ${result.resized_size}`,
+          { 
+            autoClose: 6000,
+            style: { whiteSpace: 'pre-line' }
+          }
+        );
+      } else {
+        // 프린터 연결 실패인 경우에도 성공으로 처리 (파일은 저장됨)
+        if (result.message && result.message.includes('프린터 연결 실패')) {
+          toast.warning(
+            `⚠️ ${result.message}\n파일은 서버에 저장되었습니다.\n원본: ${result.original_size} → 리사이즈: ${result.resized_size}`,
+            { 
+              autoClose: 8000,
+              style: { whiteSpace: 'pre-line' }
+            }
+          );
+        } else {
+          throw new Error(result.message || '서버에서 오류가 발생했습니다.');
+        }
+      }
 
     } catch (error) {
-      console.error('영수증 저장 중 오류가 발생했습니다:', error);
-      alert('영수증 저장에 실패했습니다. 다시 시도해주세요.');
+      console.error('영수증 출력 중 오류가 발생했습니다:', error);
+      toast.error(
+        `❌ 영수증 출력에 실패했습니다.\n\n오류: ${error instanceof Error ? error.message : '알 수 없는 오류'}\n\n다시 시도해주세요.`,
+        { 
+          autoClose: 8000,
+          style: { whiteSpace: 'pre-line' }
+        }
+      );
+    } finally {
+      // 버튼 상태 복원
+      const button = document.querySelector('button[onClick*="handleSaveReceipt"]') as HTMLButtonElement;
+      if (button) {
+        button.disabled = false;
+        button.textContent = '🖨️ 영수증 출력하기';
+      }
     }
   };
 
@@ -405,9 +456,9 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
       <div className="p-4 space-y-3">
         <button
           onClick={handleSaveReceipt}
-          className="w-full bg-gray-600 text-white py-3 font-bold text-sm hover:bg-gray-700 transition-colors touch-button"
+          className="w-full bg-gray-600 text-white py-3 font-bold text-sm hover:bg-gray-700 transition-colors touch-button disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
-          📷 영수증 저장하기
+          🖨️ 영수증 출력하기
         </button>
         <button
           onClick={onReset}

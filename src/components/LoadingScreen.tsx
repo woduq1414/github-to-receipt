@@ -45,9 +45,12 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
     };
 
     const getProgressColor = (progress: number) => {
-        if (progress < 30) return 'bg-primary-100';
-        if (progress < 70) return 'bg-primary-200';
-        return 'bg-primary-400';
+        if (progress < 10) return 'bg-blue-300';
+        if (progress < 25) return 'bg-blue-400';
+        if (progress < 50) return 'bg-primary-400';
+        if (progress < 75) return 'bg-primary-500';
+        if (progress < 90) return 'bg-green-400';
+        return 'bg-green-500';
     };
 
     return (
@@ -83,12 +86,18 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
                                     {currentStatus.progress}%
                                 </span>
                             </div>
-                            <div className="w-full bg-gray-200 rounded-full h-3">
+                            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                                 <motion.div
                                     initial={{ width: 0 }}
                                     animate={{ width: `${currentStatus.progress}%` }}
-                                    transition={{ duration: 0.5, ease: "easeOut" }}
-                                    className={`h-3 rounded-full ${getProgressColor(currentStatus.progress)}`}
+                                    transition={{ 
+                                        duration: 0.8, 
+                                        ease: "easeInOut",
+                                        type: "spring",
+                                        damping: 20,
+                                        stiffness: 100
+                                    }}
+                                    className={`h-3 rounded-full transition-colors duration-300 ${getProgressColor(currentStatus.progress)}`}
                                 />
                             </div>
                         </div>

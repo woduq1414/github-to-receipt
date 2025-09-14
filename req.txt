@@ -1,0 +1,16 @@
+appdirs==1.4.4
+argcomplete==3.6.2
+colorama==0.4.6
+importlib_resources==6.5.2
+libusb-package==1.0.26.3
+libusb1==3.3.1
+pillow==11.3.0
+pyserial==3.5
+python-barcode==0.16.1
+python-escpos==3.1
+pywin32==311
+PyYAML==6.0.2
+qrcode==8.2
+setuptools==80.9.0
+six==1.17.0
+uv==0.8.12
