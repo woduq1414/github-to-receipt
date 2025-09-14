@@ -127,12 +127,12 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
 
   const formatDateTime = () => {
     const now = new Date();
-    return `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    return `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}.${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   };
 
   const formatJoinDate = (dateString: string) => {
     const date = new Date(dateString);
-    return `Since ${date.getFullYear()}. ${String(date.getMonth() + 1).padStart(2, '0')}. ${String(date.getDate()).padStart(2, '0')}.`;
+    return `Since ${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}.`;
   };
 
   const handleSaveReceipt = async () => {
@@ -184,10 +184,10 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
 
       if (response.ok && result.success) {
         toast.success(
-          `🖨️ 영수증이 성공적으로 출력되었습니다!\n원본: ${result.original_size} → 리사이즈: ${result.resized_size}`,
+            `영수증이 성공적으로 출력되었습니다!`,
           { 
             autoClose: 6000,
-            style: { whiteSpace: 'pre-line' }
+            style: { whiteSpace: 'pre-line', width: '100%' }
           }
         );
       } else {
@@ -228,13 +228,13 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
   };
 
   return (
-    <div className="kiosk-container overflow-y-auto bg-gradient-to-br from-primary-500 to-primary-600  ">
-      <div className='flex flex-col justify-center items-center'>
+    <div className="kiosk-container overflow-y-auto bg-gradient-to-br from-primary-500 to-primary-600 scrollbar-hide">
+      <div className='flex flex-col justify-center items-center pb-32'>
         <motion.div
           id="ReceiptScreen"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="max-w-sm  bg-white mt-[1rem]"
+          className="max-w-sm  bg-white mt-[1rem] shadow-2xl mb-[1rem]"
           style={{ minHeight: '100vh', fontFamily: 'Monaco, Consolas, monospace' }}
         >
           {/* 영수증 헤더 */}
@@ -244,7 +244,7 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
               animate={{ scale: 1 }}
               transition={{ delay: 0.2 }}
             >
-              <div className="text-lg font-bold mb-1">GITHUB2RECEIPT</div>
+              <div className="text-2xl font-bold mb-1">GITHUB2RECEIPT</div>
               <div className="text-sm">개발자 활동 영수증</div>
               <div className="text-xs mt-2">{formatDateTime()}</div>
             </motion.div>
@@ -277,7 +277,7 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
               </div>
 
               {/* 통계 정보 */}
-              <div className="flex justify-between w-full space-x-4 text-xs mt-2">
+              <div className="flex justify-between w-full space-x-4 text-xs mt-3">
                 <div className="text-center flex flex-col items-center w-1/3">
                   <div className="font-bold mb-1">{githubStats.public_repos}</div>
                   <div className="text-gray-600">레포지토리</div>
@@ -373,7 +373,7 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
               {processedData.monthLabels.map((label, index) => (
                 <span
                   key={index}
-                  className="absolute text-gray-600 w-[3rem]"
+                  className="absolute text-gray-600 w-[3rem] text-sm"
                   style={{ left: `${-(Math.floor(processedData.contributionGrid.length / 2) - label.position + 1.5) * 0.8}rem` }}
                 >
                   {label.month}
@@ -408,7 +408,7 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
 
             {/* 범례 */}
             <div className="flex items-center justify-center mt-2 space-x-1 text-xs">
-              <span className='text-xs'>적음</span>
+              <span className='text-xs mr-0.5'>적음</span>
               <div className="w-2.5 h-2.5 bg-gray-100"></div>
               <div className="w-2.5 h-2.5 bg-gray-300"></div>
               <div className="w-2.5 h-2.5 bg-gray-500"></div>
@@ -445,12 +445,12 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
         </motion.div>
       </div>
 
-      {/* 버튼들 - ReceiptScreen 밖에 배치 */}
-      <div className="p-4 space-y-3">
+      {/* 버튼들 - Sticky 하단 고정 */}
+      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-br from-primary-500 to-primary-600 p-4 space-y-3 z-10">
         <button
           onClick={handleSaveReceipt}
           disabled={isPrinting}
-          className="w-full bg-gray-600 text-white py-3 font-bold text-sm hover:bg-gray-700 transition-colors touch-button disabled:bg-gray-400 disabled:cursor-not-allowed"
+          className="w-full bg-white text-black py-3 font-bold text-sm hover:bg-gray-200 transition-colors touch-button disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
           {isPrinting ? (
             <div className="flex items-center justify-center">
@@ -459,10 +459,10 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({ githubStats, onRes
                 transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
                 className="w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"
               />
-              📤 프린터로 전송 중...
+              프린터로 전송 중...
             </div>
           ) : (
-            '🖨️ 영수증 출력하기'
+            '영수증 출력하기'
           )}
         </button>
         <button

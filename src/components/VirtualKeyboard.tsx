@@ -233,7 +233,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
           </KeyButton>
           <KeyButton
             onClick={onEnter}
-            className="h-12 flex-1 max-w-[200px] bg-primary-500  border-primary-500"
+            className="h-12 flex-1 max-w-[200px] text-white bg-[#f97316]  "
             isSpecial
           >
             완료

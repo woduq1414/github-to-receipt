@@ -261,7 +261,7 @@ class GitHubClient:
             # 더 세밀한 진행도 계산
             current_progress = base_progress + (year_count / total_years * progress_range)
             
-            await self.emit_status("api_call", f"커밋 데이터 수집 중... ({year_count}/{total_years}년차)", int(current_progress))
+            await self.emit_status("api_call", f"커밋 데이터 수집 중... ({year_count} / {total_years}년차)", int(current_progress))
             
             # 1년 후 또는 현재 날짜 중 더 작은 값
             current_end = min(current_start + timedelta(days=365), to_date)
